@@ -21,17 +21,25 @@ const textEls = {
 let debounceTimer = null;
 let requestId = 0;
 let manualSource = null; // null = auto-detect, otherwise one of LANGS
+let lastQueriedText = null;
 
 wordInput.addEventListener("input", () => {
   clearTimeout(debounceTimer);
   const value = wordInput.value.trim();
   if (!value) {
     manualSource = null;
+    lastQueriedText = null;
     resetResults();
     setStatus("");
     return;
   }
-  debounceTimer = setTimeout(() => translate(value), 400);
+  debounceTimer = setTimeout(() => {
+    // Mobile keyboards (autocorrect/predictive text) can fire extra "input"
+    // events for text that hasn't actually changed — skip redundant re-runs.
+    if (value === lastQueriedText) return;
+    lastQueriedText = value;
+    translate(value);
+  }, 400);
 });
 
 document.querySelectorAll(".card-label").forEach((btn) => {
@@ -40,7 +48,10 @@ document.querySelectorAll(".card-label").forEach((btn) => {
     manualSource = manualSource === lang ? null : lang;
     updateManualIndicator();
     const value = wordInput.value.trim();
-    if (value) translate(value);
+    if (value) {
+      lastQueriedText = value;
+      translate(value);
+    }
   });
 });
 
@@ -92,18 +103,23 @@ async function fetchExampleSentence(englishWord) {
   return raw.replace(/<\/?b>/g, "");
 }
 
-async function updateGermanExample(myRequestId, sourceLang, originalText, results) {
+async function updateGermanExample(sourceLang, originalText, results) {
   exampleDeEl.textContent = "";
   if (sourceLang !== "en" && sourceLang !== "he") return;
 
   const englishWord =
     sourceLang === "en" ? originalText : results[LANGS.indexOf("en")].translated;
 
+  // Guard against the input value having moved on to something else by the
+  // time these (slower, sequential) requests come back — but a duplicate
+  // event for the *same* text should not throw away a completed lookup.
+  const stillCurrent = () => wordInput.value.trim() === originalText;
+
   try {
     const sentence = await fetchExampleSentence(englishWord);
-    if (!sentence || myRequestId !== requestId) return;
+    if (!sentence || !stillCurrent()) return;
     const { translated } = await translateOne(sentence, "de", "en");
-    if (myRequestId !== requestId) return;
+    if (!stillCurrent()) return;
     exampleDeEl.textContent = "z.B.: " + translated;
   } catch (err) {
     // Example sentences are a nice-to-have; fail silently.
@@ -144,7 +160,7 @@ async function translate(text) {
       setStatus(sourceLang ? `Detected: ${labelFor(sourceLang)}` : "");
     }
 
-    updateGermanExample(myRequestId, sourceLang, text, results);
+    updateGermanExample(sourceLang, text, results);
   } catch (err) {
     if (myRequestId !== requestId) return;
     setStatus("Couldn't reach the translation service. Check your connection.", true);
