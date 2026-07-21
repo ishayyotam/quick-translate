@@ -1,6 +1,6 @@
 {
-  "name": "Quick Translate",
-  "short_name": "Translate",
+  "name": "Big Dict Energy",
+  "short_name": "Dict Energy",
   "description": "Translate a word between English, Hebrew, and German instantly.",
   "start_url": "./index.html",
   "scope": "./",
