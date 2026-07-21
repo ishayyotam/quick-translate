@@ -91,9 +91,11 @@ async function translateOne(text, target, source) {
 }
 
 async function fetchExampleSentence(englishWord) {
+  // The dictionary/example lookup is case-sensitive and often finds nothing
+  // for a capitalized word (mobile keyboards auto-capitalize by default).
   const url =
     "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=de&dt=ex&q=" +
-    encodeURIComponent(englishWord);
+    encodeURIComponent(englishWord.toLowerCase());
   const res = await fetch(url);
   if (!res.ok) return null;
   const data = await res.json();
