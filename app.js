@@ -6,6 +6,7 @@ const wordInput = document.getElementById("word");
 const spinner = document.getElementById("spinner");
 const statusEl = document.getElementById("status");
 const exampleDeEl = document.getElementById("example-de");
+const genderDeEl = document.getElementById("gender-de");
 
 const cards = {
   en: document.getElementById("card-en"),
@@ -67,6 +68,7 @@ function resetResults() {
     cards[l].classList.remove("source", "manual");
   });
   exampleDeEl.textContent = "";
+  genderDeEl.textContent = "";
 }
 
 function setStatus(msg, isError = false) {
@@ -90,41 +92,87 @@ async function translateOne(text, target, source) {
   return { translated, detectedSource };
 }
 
-async function fetchExampleSentence(englishWord) {
+async function fetchCandidateExamples(englishWord) {
   // The dictionary/example lookup is case-sensitive and often finds nothing
   // for a capitalized word (mobile keyboards auto-capitalize by default).
   const url =
     "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=de&dt=ex&q=" +
     encodeURIComponent(englishWord.toLowerCase());
   const res = await fetch(url);
-  if (!res.ok) return null;
+  if (!res.ok) return [];
   const data = await res.json();
   const examples = data && data[13] && data[13][0];
-  if (!examples || !examples.length) return null;
-  const raw = examples[0][0];
-  return raw.replace(/<\/?b>/g, "");
+  if (!examples || !examples.length) return [];
+  return examples.map((e) => e[0].replace(/<\/?b>/g, ""));
 }
 
-async function updateGermanExample(sourceLang, originalText, results) {
+async function updateGermanExample(sourceLang, englishWord, germanWord, originalText) {
   exampleDeEl.textContent = "";
   if (sourceLang !== "en" && sourceLang !== "he") return;
-
-  const englishWord =
-    sourceLang === "en" ? originalText : results[LANGS.indexOf("en")].translated;
+  if (!englishWord || !germanWord) return;
 
   // Guard against the input value having moved on to something else by the
   // time these (slower, sequential) requests come back — but a duplicate
   // event for the *same* text should not throw away a completed lookup.
   const stillCurrent = () => wordInput.value.trim() === originalText;
+  const stem = germanWord.toLowerCase();
 
   try {
-    const sentence = await fetchExampleSentence(englishWord);
-    if (!sentence || !stillCurrent()) return;
-    const { translated } = await translateOne(sentence, "de", "en");
-    if (!stillCurrent()) return;
-    exampleDeEl.textContent = "z.B.: " + translated;
+    const candidates = await fetchCandidateExamples(englishWord);
+    // An English word can have unrelated senses (e.g. "maiden" the noun vs.
+    // "maiden" as in "maiden voyage"). Only show an example that actually
+    // translates back to the same German word we're displaying.
+    for (const sentence of candidates.slice(0, 5)) {
+      if (!stillCurrent()) return;
+      const { translated } = await translateOne(sentence, "de", "en");
+      if (translated.toLowerCase().includes(stem)) {
+        if (stillCurrent()) exampleDeEl.textContent = "z.B.: " + translated;
+        return;
+      }
+    }
   } catch (err) {
     // Example sentences are a nice-to-have; fail silently.
+  }
+}
+
+async function fetchGenderArticle(englishWord, germanWord) {
+  const url =
+    "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=de&dt=bd&q=" +
+    encodeURIComponent(englishWord.toLowerCase());
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const data = await res.json();
+  const groups = data && data[1];
+  if (!groups) return null;
+
+  const target = germanWord.toLowerCase();
+  const ARTICLE_TO_GENDER = { der: "m", die: "f", das: "n" };
+  for (const group of groups) {
+    if (group[0] !== "noun") continue;
+    for (const entry of group[2] || []) {
+      const [word, , , , article] = entry;
+      if (word && article && word.toLowerCase() === target) {
+        return ARTICLE_TO_GENDER[article] || null;
+      }
+    }
+  }
+  return null;
+}
+
+async function updateGermanGender(englishWord, germanWord, originalText) {
+  genderDeEl.textContent = "";
+  // German nouns are always capitalized; skip phrases (translations with spaces).
+  if (!englishWord || !germanWord || /\s/.test(germanWord) || !/^[A-ZÄÖÜ]/.test(germanWord)) {
+    return;
+  }
+  const stillCurrent = () => wordInput.value.trim() === originalText;
+
+  try {
+    const gender = await fetchGenderArticle(englishWord, germanWord);
+    if (!gender || !stillCurrent()) return;
+    genderDeEl.textContent = ` (${gender})`;
+  } catch (err) {
+    // Gender tagging is a nice-to-have; fail silently.
   }
 }
 
@@ -162,7 +210,11 @@ async function translate(text) {
       setStatus(sourceLang ? `Detected: ${labelFor(sourceLang)}` : "");
     }
 
-    updateGermanExample(sourceLang, text, results);
+    const englishWord = sourceLang === "en" ? text : results[LANGS.indexOf("en")].translated;
+    const germanWord = sourceLang === "de" ? text : results[LANGS.indexOf("de")].translated;
+
+    updateGermanGender(englishWord, germanWord, text);
+    updateGermanExample(sourceLang, englishWord, germanWord, text);
   } catch (err) {
     if (myRequestId !== requestId) return;
     setStatus("Couldn't reach the translation service. Check your connection.", true);

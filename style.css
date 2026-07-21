@@ -165,6 +165,13 @@ h1 {
   word-break: break-word;
 }
 
+.gender-badge {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--indigo);
+  margin-left: 4px;
+}
+
 .card-example {
   margin-top: 8px;
   padding-top: 8px;
