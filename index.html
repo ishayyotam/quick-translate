@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quick Translate</title>
+<meta name="theme-color" content="#4f46e5">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Quick Translate</h1>
+    <p class="subtitle">Type a word in English, Hebrew, or German</p>
+  </header>
+
+  <div class="input-row">
+    <input id="word" type="text" placeholder="Type a word…" autocomplete="off" autofocus>
+    <div id="spinner" class="spinner hidden"></div>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <div class="results">
+    <div class="card" id="card-en" data-lang="en">
+      <div class="card-label">English</div>
+      <div class="card-text" id="text-en">—</div>
+    </div>
+    <div class="card" id="card-he" data-lang="he">
+      <div class="card-label">עברית</div>
+      <div class="card-text" id="text-he" dir="rtl">—</div>
+    </div>
+    <div class="card" id="card-de" data-lang="de">
+      <div class="card-label">Deutsch</div>
+      <div class="card-text" id="text-de">—</div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
