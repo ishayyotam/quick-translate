@@ -1,4 +1,4 @@
-const CACHE_NAME = "quick-translate-v1";
+const CACHE_NAME = "quick-translate-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -31,7 +31,15 @@ self.addEventListener("fetch", (event) => {
   // Never cache translation API calls — always go to network.
   if (url.hostname === "translate.googleapis.com") return;
 
+  // Network-first: always try to get the latest app files when online,
+  // only fall back to the cache when offline.
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((res) => {
+        const resClone = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
