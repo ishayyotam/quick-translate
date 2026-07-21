@@ -128,16 +128,14 @@ async function fetchCandidateExamples(englishWord) {
   return examples.map((e) => e[0].replace(/<\/?b>/g, ""));
 }
 
-async function updateGermanExample(sourceLang, englishWord, germanWord, originalText) {
+async function updateGermanExample(englishWord, germanWord, originalText) {
   exampleDeEl.textContent = "";
-  if (sourceLang !== "en" && sourceLang !== "he") return;
   if (!englishWord || !germanWord) return;
 
   // Guard against the input value having moved on to something else by the
   // time these (slower, sequential) requests come back — but a duplicate
   // event for the *same* text should not throw away a completed lookup.
   const stillCurrent = () => wordInput.value.trim() === originalText;
-  const stem = germanWord.toLowerCase();
 
   try {
     const candidates = await fetchCandidateExamples(englishWord);
@@ -156,8 +154,11 @@ async function updateGermanExample(sourceLang, englishWord, germanWord, original
     );
     if (!stillCurrent()) return;
 
+    // Case-sensitive on purpose: German capitalizes nouns, so "Essen" (the
+    // noun, food) must not match inside "gegessen" (a form of the unrelated
+    // verb "essen", to eat) just because it's a lowercase substring there.
     const match = translations.find(
-      (r) => r && r.translated.toLowerCase().includes(stem)
+      (r) => r && r.translated.includes(germanWord)
     );
     if (match) exampleDeEl.textContent = "z.B.: " + match.translated;
   } catch (err) {
@@ -350,7 +351,7 @@ async function translate(text) {
     const germanWord = sourceLang === "de" ? text : results[LANGS.indexOf("de")].translated;
 
     updateGermanGender(englishWord, germanWord, text);
-    updateGermanExample(sourceLang, englishWord, germanWord, text);
+    updateGermanExample(englishWord, germanWord, text);
     updateSynonyms(englishWord, text);
   } catch (err) {
     if (myRequestId !== requestId) return;
