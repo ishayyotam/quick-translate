@@ -166,10 +166,8 @@ h1 {
 }
 
 .gender-badge {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--indigo);
-  margin-left: 4px;
+  color: var(--muted);
+  font-weight: 400;
 }
 
 .card-example {

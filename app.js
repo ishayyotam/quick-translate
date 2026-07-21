@@ -119,17 +119,25 @@ async function updateGermanExample(sourceLang, englishWord, germanWord, original
 
   try {
     const candidates = await fetchCandidateExamples(englishWord);
+    if (!candidates.length || !stillCurrent()) return;
+
     // An English word can have unrelated senses (e.g. "maiden" the noun vs.
     // "maiden" as in "maiden voyage"). Only show an example that actually
-    // translates back to the same German word we're displaying.
-    for (const sentence of candidates.slice(0, 5)) {
-      if (!stillCurrent()) return;
-      const { translated } = await translateOne(sentence, "de", "en");
-      if (translated.toLowerCase().includes(stem)) {
-        if (stillCurrent()) exampleDeEl.textContent = "z.B.: " + translated;
-        return;
-      }
-    }
+    // translates back to the same German word we're displaying. Translate
+    // every candidate in parallel (not one-by-one) so checking more of them
+    // doesn't cost extra time — some words only have a matching example
+    // further down the list.
+    const translations = await Promise.all(
+      candidates.map((sentence) =>
+        translateOne(sentence, "de", "en").catch(() => null)
+      )
+    );
+    if (!stillCurrent()) return;
+
+    const match = translations.find(
+      (r) => r && r.translated.toLowerCase().includes(stem)
+    );
+    if (match) exampleDeEl.textContent = "z.B.: " + match.translated;
   } catch (err) {
     // Example sentences are a nice-to-have; fail silently.
   }
@@ -146,13 +154,12 @@ async function fetchGenderArticle(englishWord, germanWord) {
   if (!groups) return null;
 
   const target = germanWord.toLowerCase();
-  const ARTICLE_TO_GENDER = { der: "m", die: "f", das: "n" };
   for (const group of groups) {
     if (group[0] !== "noun") continue;
     for (const entry of group[2] || []) {
       const [word, , , , article] = entry;
       if (word && article && word.toLowerCase() === target) {
-        return ARTICLE_TO_GENDER[article] || null;
+        return ["der", "die", "das"].includes(article) ? article : null;
       }
     }
   }
@@ -168,9 +175,9 @@ async function updateGermanGender(englishWord, germanWord, originalText) {
   const stillCurrent = () => wordInput.value.trim() === originalText;
 
   try {
-    const gender = await fetchGenderArticle(englishWord, germanWord);
-    if (!gender || !stillCurrent()) return;
-    genderDeEl.textContent = ` (${gender})`;
+    const article = await fetchGenderArticle(englishWord, germanWord);
+    if (!article || !stillCurrent()) return;
+    genderDeEl.textContent = article + " ";
   } catch (err) {
     // Gender tagging is a nice-to-have; fail silently.
   }
