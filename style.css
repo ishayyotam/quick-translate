@@ -104,6 +104,14 @@ h1 {
 
 .status.error { color: #e05252; }
 
+.hint {
+  min-height: 16px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: -6px 0 12px;
+  text-align: center;
+}
+
 .results {
   display: flex;
   flex-direction: column;
@@ -122,15 +130,51 @@ h1 {
   opacity: 0.45;
 }
 
+.card.manual {
+  border-color: var(--indigo);
+}
+
 .card-label {
+  display: inline-block;
+  font: inherit;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--muted);
   margin-bottom: 4px;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.card-label:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.card.manual .card-label {
+  color: var(--indigo);
+  font-weight: 600;
 }
 
 .card-text {
   font-size: 1.15rem;
   word-break: break-word;
+}
+
+.card-example {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-style: italic;
+  word-break: break-word;
+}
+
+.card-example:empty {
+  display: none;
 }

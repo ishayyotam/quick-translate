@@ -23,19 +23,21 @@
   </div>
 
   <div id="status" class="status"></div>
+  <p class="hint">Guessed the wrong language? Tap a label to set it.</p>
 
   <div class="results">
     <div class="card" id="card-en" data-lang="en">
-      <div class="card-label">English</div>
+      <button class="card-label" type="button" data-lang="en">English</button>
       <div class="card-text" id="text-en">—</div>
     </div>
     <div class="card" id="card-he" data-lang="he">
-      <div class="card-label">עברית</div>
+      <button class="card-label" type="button" data-lang="he">עברית</button>
       <div class="card-text" id="text-he" dir="rtl">—</div>
     </div>
     <div class="card" id="card-de" data-lang="de">
-      <div class="card-label">Deutsch</div>
+      <button class="card-label" type="button" data-lang="de">Deutsch</button>
       <div class="card-text" id="text-de">—</div>
+      <div class="card-example" id="example-de"></div>
     </div>
   </div>
 </div>
