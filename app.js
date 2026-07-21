@@ -18,6 +18,17 @@ const textEls = {
   he: document.getElementById("text-he"),
   de: document.getElementById("text-de"),
 };
+const synonymToggles = {
+  en: document.querySelector('.synonyms-toggle[data-lang="en"]'),
+  he: document.querySelector('.synonyms-toggle[data-lang="he"]'),
+  de: document.querySelector('.synonyms-toggle[data-lang="de"]'),
+};
+const synonymPanels = {
+  en: document.getElementById("synonyms-en"),
+  he: document.getElementById("synonyms-he"),
+  de: document.getElementById("synonyms-de"),
+};
+const synonymsExpanded = { en: false, he: false, de: false };
 
 let debounceTimer = null;
 let requestId = 0;
@@ -56,6 +67,13 @@ document.querySelectorAll(".card-label").forEach((btn) => {
   });
 });
 
+Object.entries(synonymToggles).forEach(([lang, btn]) => {
+  btn.addEventListener("click", () => {
+    synonymsExpanded[lang] = !synonymsExpanded[lang];
+    synonymPanels[lang].hidden = !synonymsExpanded[lang];
+  });
+});
+
 function updateManualIndicator() {
   LANGS.forEach((lang) => {
     cards[lang].classList.toggle("manual", lang === manualSource);
@@ -69,6 +87,10 @@ function resetResults() {
   });
   exampleDeEl.textContent = "";
   genderDeEl.textContent = "";
+  LANGS.forEach((l) => {
+    synonymPanels[l].innerHTML = "";
+    synonymToggles[l].hidden = true;
+  });
 }
 
 function setStatus(msg, isError = false) {
@@ -183,6 +205,113 @@ async function updateGermanGender(englishWord, germanWord, originalText) {
   }
 }
 
+async function fetchDictionaryGroups(englishWord, targetLang) {
+  const url =
+    "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=" +
+    targetLang +
+    "&dt=bd&q=" +
+    encodeURIComponent(englishWord.toLowerCase());
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data && data[1]) || [];
+}
+
+// [word, translation, gloss?, weight, article?] per entry — pull the flat
+// word list plus (for German) the gender article Google ties to each sense.
+function dictionaryGroupsToPairs(groups) {
+  return groups
+    .slice(0, 4)
+    .map((group) => {
+      const pos = group[0];
+      const entries = group[2] || [];
+      const words = (group[1] || []).slice(0, 8).map((word) => {
+        const entry = entries.find((e) => e[0] === word);
+        const article = entry && entry[4];
+        return article ? `${article} ${word}` : word;
+      });
+      return [pos, words];
+    })
+    .filter(([, words]) => words.length);
+}
+
+async function fetchEnglishSynonymGroups(englishWord) {
+  const url =
+    "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=de&dt=ss&q=" +
+    encodeURIComponent(englishWord.toLowerCase());
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data && data[11]) || [];
+}
+
+function synonymGroupsToPairs(groups) {
+  return groups
+    .slice(0, 4)
+    .map((group) => {
+      const pos = group[0];
+      const clusters = group[1] || [];
+      // Each cluster is a separate synonym set (sometimes for a different
+      // shade of meaning or register) — flatten and dedupe across all of
+      // them rather than just the first, which can be a rare/tagged outlier.
+      const seen = new Set();
+      const words = [];
+      for (const cluster of clusters) {
+        for (const word of cluster[0] || []) {
+          if (!seen.has(word)) {
+            seen.add(word);
+            words.push(word);
+          }
+        }
+      }
+      return [pos, words.slice(0, 8)];
+    })
+    .filter(([, words]) => words.length);
+}
+
+function renderSynonymPairs(lang, pairs) {
+  const panel = synonymPanels[lang];
+  panel.innerHTML = "";
+  pairs.forEach(([pos, words]) => {
+    const line = document.createElement("div");
+    line.className = "synonym-line";
+    const posSpan = document.createElement("span");
+    posSpan.className = "syn-pos";
+    posSpan.textContent = pos;
+    line.appendChild(posSpan);
+    line.appendChild(document.createTextNode(": " + words.join(", ")));
+    panel.appendChild(line);
+  });
+  const hasContent = pairs.length > 0;
+  synonymToggles[lang].hidden = !hasContent;
+  panel.hidden = !hasContent || !synonymsExpanded[lang];
+}
+
+async function updateSynonyms(englishWord, originalText) {
+  LANGS.forEach((l) => {
+    synonymPanels[l].innerHTML = "";
+    synonymToggles[l].hidden = true;
+  });
+  if (!englishWord) return;
+
+  const stillCurrent = () => wordInput.value.trim() === originalText;
+
+  try {
+    const [deGroups, heGroups, enGroups] = await Promise.all([
+      fetchDictionaryGroups(englishWord, "de"),
+      fetchDictionaryGroups(englishWord, "he"),
+      fetchEnglishSynonymGroups(englishWord),
+    ]);
+    if (!stillCurrent()) return;
+
+    renderSynonymPairs("de", dictionaryGroupsToPairs(deGroups));
+    renderSynonymPairs("he", dictionaryGroupsToPairs(heGroups));
+    renderSynonymPairs("en", synonymGroupsToPairs(enGroups));
+  } catch (err) {
+    // Synonyms are a nice-to-have; fail silently.
+  }
+}
+
 async function translate(text) {
   const myRequestId = ++requestId;
   spinner.classList.remove("hidden");
@@ -222,6 +351,7 @@ async function translate(text) {
 
     updateGermanGender(englishWord, germanWord, text);
     updateGermanExample(sourceLang, englishWord, germanWord, text);
+    updateSynonyms(englishWord, text);
   } catch (err) {
     if (myRequestId !== requestId) return;
     setStatus("Couldn't reach the translation service. Check your connection.", true);

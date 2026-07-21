@@ -183,3 +183,36 @@ h1 {
 .card-example:empty {
   display: none;
 }
+
+.synonyms-toggle {
+  display: block;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--indigo);
+  background: transparent;
+  border: none;
+  padding: 6px 0 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.synonyms-toggle:hover {
+  text-decoration: underline;
+}
+
+.synonyms-panel {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.synonym-line {
+  margin: 3px 0;
+}
+
+.syn-pos {
+  color: var(--muted);
+  font-style: italic;
+}
