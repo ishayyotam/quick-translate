@@ -247,27 +247,22 @@ async function fetchEnglishSynonymGroups(englishWord) {
 }
 
 function synonymGroupsToPairs(groups) {
-  return groups
-    .slice(0, 4)
-    .map((group) => {
-      const pos = group[0];
-      const clusters = group[1] || [];
-      // Each cluster is a separate synonym set (sometimes for a different
-      // shade of meaning or register) — flatten and dedupe across all of
-      // them rather than just the first, which can be a rare/tagged outlier.
-      const seen = new Set();
-      const words = [];
-      for (const cluster of clusters) {
-        for (const word of cluster[0] || []) {
-          if (!seen.has(word)) {
-            seen.add(word);
-            words.push(word);
-          }
-        }
-      }
-      return [pos, words.slice(0, 8)];
-    })
-    .filter(([, words]) => words.length);
+  // Each cluster within a POS group is a genuinely different sense or shade
+  // of meaning (e.g. "solution" as noun splits into "answer/resolution...",
+  // "services/resource(s)..." and "mixture/blend..."). Keep them as separate
+  // lines instead of merging, so a polysemous word visibly shows its
+  // distinct meanings rather than one blended, confusing word list.
+  const pairs = [];
+  for (const group of groups) {
+    const pos = group[0];
+    const clusters = group[1] || [];
+    for (const cluster of clusters) {
+      const words = (cluster[0] || []).slice(0, 6);
+      if (words.length) pairs.push([pos, words]);
+      if (pairs.length >= 6) return pairs;
+    }
+  }
+  return pairs;
 }
 
 function renderSynonymPairs(lang, pairs) {
