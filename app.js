@@ -189,12 +189,17 @@ async function fetchGenderArticle(englishWord, germanWord) {
   return null;
 }
 
-async function updateGermanGender(englishWord, germanWord, originalText) {
+async function updateGermanGender(englishWord, germanWord, originalText, isRawGermanInput) {
   genderDeEl.textContent = "";
-  // German nouns are always capitalized; skip phrases (translations with spaces).
-  if (!englishWord || !germanWord || /\s/.test(germanWord) || !/^[A-ZÄÖÜ]/.test(germanWord)) {
-    return;
-  }
+  // Skip phrases (translations with spaces) either way.
+  if (!englishWord || !germanWord || /\s/.test(germanWord)) return;
+  // German nouns are always capitalized in Google's own translation output,
+  // so that's a reliable noun-vs-verb signal there (e.g. keeps "gehen" from
+  // getting tagged even though a "Gehen" noun sense also exists). But when
+  // the German word is the user's own typed input (autocapitalize is off,
+  // see index.html), it may be a real noun typed lowercase — the dictionary
+  // lookup below is already case-insensitive, so just skip the gate here.
+  if (!isRawGermanInput && !/^[A-ZÄÖÜ]/.test(germanWord)) return;
   const stillCurrent = () => wordInput.value.trim() === originalText;
 
   try {
@@ -345,7 +350,7 @@ async function translate(text) {
     const englishWord = sourceLang === "en" ? text : results[LANGS.indexOf("en")].translated;
     const germanWord = sourceLang === "de" ? text : results[LANGS.indexOf("de")].translated;
 
-    updateGermanGender(englishWord, germanWord, text);
+    updateGermanGender(englishWord, germanWord, text, sourceLang === "de");
     updateGermanExample(englishWord, germanWord, text);
     updateSynonyms(englishWord, text);
   } catch (err) {
