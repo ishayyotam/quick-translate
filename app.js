@@ -182,7 +182,7 @@ async function fetchGenderArticle(englishWord, germanWord) {
     for (const entry of group[2] || []) {
       const [word, , , , article] = entry;
       if (word && article && word.toLowerCase() === target) {
-        return ["der", "die", "das"].includes(article) ? article : null;
+        return ["der", "die", "das"].includes(article) ? { article, word } : null;
       }
     }
   }
@@ -203,9 +203,13 @@ async function updateGermanGender(englishWord, germanWord, originalText, isRawGe
   const stillCurrent = () => wordInput.value.trim() === originalText;
 
   try {
-    const article = await fetchGenderArticle(englishWord, germanWord);
-    if (!article || !stillCurrent()) return;
-    genderDeEl.textContent = article + " ";
+    const result = await fetchGenderArticle(englishWord, germanWord);
+    if (!result || !stillCurrent()) return;
+    genderDeEl.textContent = result.article + " ";
+    // The user's own typed input may not follow German noun capitalization
+    // (autocapitalize is off) -- now that we know it's a noun, correct the
+    // displayed word to the dictionary's properly-cased form.
+    if (isRawGermanInput) textEls.de.textContent = result.word;
   } catch (err) {
     // Gender tagging is a nice-to-have; fail silently.
   }
