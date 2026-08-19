@@ -176,9 +176,14 @@ async function fetchGenderArticle(englishWord, germanWord) {
   const groups = data && data[1];
   if (!groups) return null;
 
+  // Don't filter by group[0] === "noun" -- Google localizes that label based
+  // on the request's Accept-Language header (e.g. "Substantiv" instead of
+  // "noun" for German-language browsers), so it's not a reliable check. The
+  // article field itself is only ever present on noun entries, so checking
+  // for it directly is both sufficient and locale-independent (this matches
+  // how dictionaryGroupsToPairs already does it for the synonyms list).
   const target = germanWord.toLowerCase();
   for (const group of groups) {
-    if (group[0] !== "noun") continue;
     for (const entry of group[2] || []) {
       const [word, , , , article] = entry;
       if (word && article && word.toLowerCase() === target) {
